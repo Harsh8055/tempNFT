@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 contract TempNFT {
     // Create Collateral based NFT Renting/Borrowing
-    NFTs[] totalNftAvailable;
+    NFTs[] public totalNftAvailable;
     
     // States of NFT - Available For Renting, Borrowed
     enum State {
@@ -224,17 +224,6 @@ contract TempNFT {
       }
       lenderDetails[msg.sender].rentedNFTs[_id].stateOfNFT == State.Delisted;
 
-      // to remove the NFt from arrays
-
-      // for (uint256 index = _globalID; index < totalNftAvailable.length; index++) {
-      //  totalNftAvailable[_globalID] = totalNftAvailable[_globalID+1];
-      // }
-      // totalNftAvailable.pop();
-      // for (uint256 index = _id; index < lenderDetails[msg.sender].rentedNFTs.length ; index++) {
-      //  totalNftAvailable[_globalID] = totalNftAvailable[_globalID+1];
-      // }
-      // totalNftAvailable.pop();
-
 
     }
 
@@ -247,7 +236,7 @@ contract TempNFT {
     return  lenderDetails[_owner];
   }
 
-  function getBorrowedNFT(address _borrower) view external returns(borrower memory) {
+  function getBorrowedNFT() view external returns(borrower memory) {
       if(borrowerDetails[msg.sender].currentBorrowedNFT == address(0)) {
       
       }
@@ -255,6 +244,7 @@ contract TempNFT {
        return borrowerDetails[msg.sender];
        }
     }
+  
      
 
 }
