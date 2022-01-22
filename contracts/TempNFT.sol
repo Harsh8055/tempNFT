@@ -8,11 +8,13 @@ import "@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 contract TempNFT {
     // Create Collateral based NFT Renting/Borrowing
-    address[] totalNftAvailable;
+    NFTs[] totalNftAvailable;
+    
     // States of NFT - Available For Renting, Borrowed
     enum State {
         Available,
-        Borrowed
+        Borrowed,
+        Delisted
          }
     
     struct NFTLender {
@@ -23,10 +25,12 @@ contract TempNFT {
     }
 
     struct NFTs {
-        uint nftid;
+        uint nftid; // per user id
+        uint globalID; // global id
         uint hourlyRate; 
         uint dailyRate; 
         uint tokenID; 
+        address owner;
         uint maxBorrowTime; // In Days
         address NFTaddress; 
         State stateOfNFT;
@@ -36,6 +40,7 @@ contract TempNFT {
 
 
     struct borrower {
+        uint NFTGlobalID;
         address payable borrowerAddress; 
         address currentBorrowedNFT;
         uint collateralPaid;
@@ -91,8 +96,9 @@ contract TempNFT {
      newNFT.NFTaddress = _nft; 
      newNFT.tokenID = _tokenId; 
      newNFT.stateOfNFT = State.Available; 
-     newNFT.nftid = newNFT.nftid + 1;
-
+     newNFT.nftid = newNFT.nftid;
+     newNFT.globalID = totalNftAvailable.length;
+     newNFT.owner = msg.sender;
      nftOwner.rentedNFTs[nftOwner.rentedNFTs.length] = newNFT;
      lenderDetails[msg.sender] = nftOwner;
      if( IERC721(_nft).balanceOf(msg.sender) != 0) {
@@ -100,14 +106,14 @@ contract TempNFT {
       IERC721(_nft).approve(address(this), _tokenId);
       IERC721(_nft).transferFrom(msg.sender, address(this), _tokenId );
       NFTRegistry[msg.sender].push(_nft);
-      totalNftAvailable.push(_nft);
+      totalNftAvailable.push(newNFT);
      }
      else {
       newNFT.typeOfNft = 1155;
       IERC1155(_nft).setApprovalForAll(address(this), true);
       IERC1155(_nft).safeTransferFrom(msg.sender, address(this), _tokenId, 1, "" );
       NFTRegistry[msg.sender].push(_nft);
-      totalNftAvailable.push(_nft);
+      totalNftAvailable.push(newNFT);
      }
      
 
@@ -119,6 +125,7 @@ contract TempNFT {
         
 
     function borrowNFT( address _owner, uint _id,  address _nft, uint identifier,  uint num, uint _time ) payable external Available(_owner, _id) {  
+      require( borrowerDetails[msg.sender].borrowerAddress == address(0));
      if(num == 0){ // meaning borrower is borrowing in hours 
         require( msg.value >= lenderDetails[msg.sender].rentedNFTs[_id].minimumCollateral + num*lenderDetails[msg.sender].rentedNFTs[_id].hourlyRate);  
     
@@ -138,6 +145,7 @@ contract TempNFT {
         borrowerDetails[msg.sender].currentBorrowedNFT = _nft;
         borrowerDetails[msg.sender].deadline = block.timestamp + num*60*60;
         borrowerDetails[msg.sender].collateralPaid =  lenderDetails[msg.sender].rentedNFTs[_id].minimumCollateral;
+        borrowerDetails[msg.sender].NFTGlobalID = lenderDetails[_owner].rentedNFTs[_id].globalID;
       }
       else{ // meaning borrower is borrowing in hours 
         require( msg.value >= lenderDetails[_owner].rentedNFTs[_id].minimumCollateral + num*lenderDetails[msg.sender].rentedNFTs[_id].dailyRate);  
@@ -158,7 +166,10 @@ contract TempNFT {
         borrowerDetails[msg.sender].borrowedFor = num;
         borrowerDetails[msg.sender].deadline = block.timestamp + num*60*60*24;
         borrowerDetails[msg.sender].collateralPaid =  lenderDetails[_owner].rentedNFTs[_id].minimumCollateral;
+        borrowerDetails[msg.sender].NFTGlobalID = lenderDetails[_owner].rentedNFTs[_id].globalID;
        } 
+
+       lenderDetails[_owner].rentedNFTs[_id].stateOfNFT == State.Borrowed;
       }
 
     
@@ -196,7 +207,7 @@ contract TempNFT {
         borrowerDetails[msg.sender].borrowedFor = 0;
         borrowerDetails[msg.sender].deadline = 0;
         borrowerDetails[msg.sender].collateralPaid =  0;
-
+        
 
     } 
      
@@ -211,13 +222,39 @@ contract TempNFT {
       IERC1155(_nft).safeTransferFrom(address(this),msg.sender, lenderDetails[msg.sender].rentedNFTs[_id].tokenID, 1, "" );
 
       }
+      lenderDetails[msg.sender].rentedNFTs[_id].stateOfNFT == State.Delisted;
 
-      // TODO to remove the NFt from arrays
+      // to remove the NFt from arrays
+
+      // for (uint256 index = _globalID; index < totalNftAvailable.length; index++) {
+      //  totalNftAvailable[_globalID] = totalNftAvailable[_globalID+1];
+      // }
+      // totalNftAvailable.pop();
+      // for (uint256 index = _id; index < lenderDetails[msg.sender].rentedNFTs.length ; index++) {
+      //  totalNftAvailable[_globalID] = totalNftAvailable[_globalID+1];
+      // }
+      // totalNftAvailable.pop();
 
 
     }
-    
 
+  function getNftFromGlobalId(uint _globalId) view external returns(NFTs memory) {
+    return totalNftAvailable[_globalId];
+
+  }
+
+  function getLender(address _owner) view external returns(NFTLender memory) {
+    return  lenderDetails[_owner];
+  }
+
+  function getBorrowedNFT(address _borrower) view external returns(borrower memory) {
+      if(borrowerDetails[msg.sender].currentBorrowedNFT == address(0)) {
+      
+      }
+       else {
+       return borrowerDetails[msg.sender];
+       }
+    }
      
 
 }
